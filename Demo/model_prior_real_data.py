@@ -1,20 +1,23 @@
 # Generic package
 import numpy as np
+import os
 import random
 import h5py
 import time
 import copy
 import matplotlib.pyplot as plt
+import tramp
 
 # Tramp package
 from tramp.algos.metrics import mean_squared_error
 from tramp.algos import NoisyInit
-from tramp.algos import EarlyStopping, ExpectationPropagation
+from tramp.algos import EarlyStopping, ExpectationPropagation, JoinCallback, TrackEvolution
 from tramp.ensembles import GaussianEnsemble
 from tramp.variables import SISOVariable as V, SILeafVariable as O, MISOVariable as M
 from tramp.likelihoods import GaussianLikelihood
 from tramp.priors import GaussianPrior
 from tramp.channels import LinearChannel, ReshapeChannel, LeakyReluChannel, ReluChannel, HardTanhChannel, BiasChannel
+
 
 # Specific to keras
 from keras.datasets import mnist, fashion_mnist
@@ -56,8 +59,6 @@ class Model_Prior():
 
         # Seed
         self.seed = seed
-        if self.seed != 0:
-            np.random.seed(self.seed)
 
         # Plot 
         self.plot_prior_sample = plot_prior_sample
@@ -67,7 +68,8 @@ class Model_Prior():
         self.list_var = []
 
         # Callback
-        self.callback = EarlyStopping(tol=1e-8, min_variance=1e-12)
+        #self.callback = JoinCallback([EarlyStopping(tol=1e-8, min_variance=1e-12), TrackEvolution()])
+        self.callback = TrackEvolution()
 
     def setup(self):
         # Build prior module
@@ -120,9 +122,9 @@ class Model_Prior():
         return prior_x
 
     def load_VAE_prior(self, params):
-        # load GAN weights
+        # load VAE weights
         file = h5py.File(
-            f"GAN_VAE_weights/vae_weights/{params['type']}/vae_{params['type']}_{params['id']}.h5", "r")
+            f"Demo/VAE_weights/{params['type']}/vae_{params['type']}_{params['id']}.h5", "r")
         decoder = file['decoder']
 
         layers = [decoder[key] for key in list(decoder.keys())]
@@ -228,6 +230,8 @@ class Model_Prior():
 
             # Draw random sample from category
             indices = np.array([i for i in range(len(Y_test)) if Y_test[i] == self.data_params['category']])
+            if self.seed != 0:
+                np.random.seed(self.seed)
             id = indices[np.random.randint(0, len(indices), 1)]
             
             # Choose x_star
@@ -278,11 +282,10 @@ class Model_Prior():
         # EP iterations
         ep = ExpectationPropagation(self.model)
         ep.iterate(
-            max_iter=max_iter, callback=self.callback, initializer=initializer,
-            check_decreasing=check_decreasing, variables_damping=variables_damping)
-
+            max_iter=max_iter, callback=self.callback, initializer=initializer, damping=0.5)
+        track = self.callback.get_dataframe()
         ep_x_data = ep.get_variables_data(self.x_ids)
-        ep_x_data_evo = [x['r'] for x in ep.data_tmp]
+        ep_x_data_evo = track.loc[track['id'] == 'x']
         return ep_x_data, ep_x_data_evo
 
     ### Annex functions ###
@@ -309,45 +312,7 @@ class Model_Prior():
         return list_var_damping
 
     ### Plots ###
-    # def plot_truth_vs_prediction(self, save_fig=False):
-    #     assert self.N == 784
-    #     v_star = self.x_true['x'].reshape(28, 28)
-    #     v_hat = self.x_pred['x'].reshape(28, 28)
-    #     fig, axes = plt.subplots(1, 3, figsize=(8,8))
-    #     axes[0].imshow(v_star, cmap='Greys')
-
-    #     if self.model_params['name'] == 'inpainting': 
-    #         y_true = self.y_inp.reshape(28, 28)
-    #     elif self.model_params['name'] in ['denoising']: 
-    #         y_true = self.y_true['y'].reshape(28, 28)
-    #     else :
-    #         y_true = v_star
-
-    #     axes[1].imshow(y_true, cmap='Greys')
-    #     axes[2].imshow(v_hat, cmap='Greys')
-        
-    #     axes[0].set_xlabel(r'$x^\star$',Fontsize=25)
-    #     axes[1].set_xlabel(r'$x_{\rm obs}$',Fontsize=25)
-    #     axes[2].set_xlabel(r'$\hat{x}$',Fontsize=25)
-    #     plt.title(f'MSE:{self.mse:.3f}')
-    #     plt.tight_layout()
-    #     axes[0].set_xticks([]), axes[0].set_yticks([])
-    #     axes[1].set_xticks([]), axes[1].set_yticks([])
-    #     axes[2].set_xticks([]), axes[2].set_yticks([])
-    #     # Save
-    #     id = int(time.time())
-    #     file_name = f"./Images/{self.model_params['name']}/{self.data_params['name']}_{self.prior_params['name']}_{self.prior_params['id']}_Delta{self.Delta:.3f}_alpha{self.model_params['alpha']:.3f}_{id}.pdf"
-        
-    #     if save_fig :
-    #         plt.savefig(file_name, format='pdf', dpi=1000,
-    #                 bbox_inches="tight", pad_inches=0.1)
-    #     # Show
-    #     if self.plot_truth_vs_pred:
-    #         plt.show()
-    #         #input("Press Enter to continue...")
-    #         #plt.close()
-
-    def plot_truth_vs_prediction(self, x_pred, save_fig=False):
+    def plot_truth_vs_prediction(self, x_pred, save_fig=False, block=False):
         assert self.N == 784
         v_star = self.x_true['x'].reshape(28, 28)
         v_hat = x_pred.reshape(28, 28)
@@ -382,6 +347,10 @@ class Model_Prior():
                     bbox_inches="tight", pad_inches=0.1)
         # Show
         if self.plot_truth_vs_pred:
-            plt.show()
+            if block:
+                plt.show(block=False)
+                input('Press enter to continue')
+            else: 
+                plt.show()
             plt.close()
 

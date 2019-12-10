@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from Class.model_prior_real_data import Model_Prior
+from Demo.model_prior_real_data import Model_Prior
 
 
 def run_demo(model='inpainting', data='mnist',category=0, n_rem=1, Delta=0.01,
@@ -32,18 +32,21 @@ def run_demo(model='inpainting', data='mnist',category=0, n_rem=1, Delta=0.01,
                      prior_params=prior_params, Delta=Delta, seed=seed,
                      plot_prior_sample=plot_prior_sample, plot_truth_vs_pred=plot_truth_vs_pred)
     EP.setup()
-    output, output_tmp = EP.run_ep(
+    output, output_tracking = EP.run_ep(
         max_iter=max_iter, check_decreasing=False)
     mse_ep, mse = EP.compute_mse(output)
-    EP.plot_truth_vs_prediction(x_pred=EP.x_pred['x'], save_fig=save_fig)
+    EP.plot_truth_vs_prediction(x_pred=EP.x_pred['x'], save_fig=save_fig, block=False)
 
-    if plot_evolution :
-        for i in range(len(output_tmp)):
+    ## Plot evolution during training
+    if plot_evolution:
+        print(len(output_tracking))
+        for i in range(len(output_tracking)):
             if i % int(max_iter/10) == 0:
-                EP.plot_truth_vs_prediction(x_pred=output_tmp[i],save_fig=save_fig)
+                x_pred = output_tracking.iloc[i]['r']
+                EP.plot_truth_vs_prediction(x_pred=output_tracking.iloc[i]['r'], save_fig=save_fig, block=False)
 
 
 
 if __name__ == '__main__':
-    run_demo(model='inpainting', data='mnist', max_iter=10, n_rem=20, Delta=2, seed=2, 
-            plot_truth_vs_pred=True)
+    run_demo(model='inpainting', data='mnist', max_iter=1000, n_rem=20, Delta=2, seed=2, 
+            plot_truth_vs_pred=True, plot_evolution=True)
