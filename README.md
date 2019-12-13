@@ -13,18 +13,18 @@ For demonstration we use a simple <b> VAE prior </b>: ([Dense(20, 400) + bias ->
 
 ## Details
 * <b>model</b>: 
-    * 'inpainting': $n_{rem}$ = percentage of the image deleted
-    * 'denoising': $\Delta$ = variance of the additive noise
+    * 'inpainting': n_rem = percentage of the image deleted
+    * 'denoising': Delta = variance of the additive noise
 * <b>data</b> 
     * 'mnist'
     * 'fashion_mnist'
-* <b>category</b> $\in [0:9]$
+* <b>category</b> in [0:9]
 * <b>max_iter</b>: maximum number of iterations
-* <b>seed</b>: None if $0$
+* <b>seed</b>: None if 0
 * <b> plot_prior_sample</b>: shows prior samples
 
 
 * Notations: 
-    * $x^\star$: drawn from <b> data </b>
-    * $x_{\rm obs}$: <b>model</b>($x^\star$)
-    * $\hat{x}$: estimator of $x^\star$
+    * x^\star: drawn from <b> data </b>
+    * x_obs: <b>model</b>(x^\star)
+    * \hat{x}: estimator of x^\star
